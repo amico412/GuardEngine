@@ -1,4 +1,2 @@
 # GuardEngine
-AWS engine to enable security baseline across multiple accounts
-change
-
+GuardEngine is an automated solution to set security baselines across multiple accounts within an AWS Organization. Lightweight governance tool that will set password policy, deploy CloudFormation templates, and enforce GuardDuty and SecurityHub. Multiple triggers set to ensure policies stay enforced even if they are removed by child account admins. 

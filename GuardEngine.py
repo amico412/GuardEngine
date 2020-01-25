@@ -24,7 +24,7 @@ sec_account = os.environ['SECURITY_ACCOUNT']
 detectorID = os.environ['INFOSEC_DETECTORID']
 test_trigger = os.environ['TEST_TRIGGER']
 shared_role = os.environ['SHARED_ROLE']
-s3_template_url = os.environ.['S3_TEMPLATE_URL']
+s3_template_url = os.environ['S3_TEMPLATE_URL']
 
 #SecurityStackName = os.environ['SECURITY_STACK_NAME']
 #SecurityStackURL = os.environ['SECURITY_STACK_URL']
@@ -264,34 +264,18 @@ def SecurityHubConfig(credentials):
         print('Security Hub invitation is already accepted') 
 
 # Function to get stackname and url from S3 bucket location
-def GetStacks():
-    client = boto3.client('s3')
-    # Clear stack array to store stack names
-    stacks = []
-
-    # THIS IS FROM GET ACCOUNT ID SO WILL NEED UPDATING
-    # Read the bucket and list the objects that end in yml
-    # strip the front https url part and the trailing .yml
-    # assign the filename as the stackname into the array
-    
-    response = client.list_accounts()
-
-    for account in response['Accounts']:
-        # Find status and only add if active since deleted accounts could show as suspended
-        if account['Status'] == 'ACTIVE':
-            # Append the id field from the dict 
-            AccountID.append(account['Id'])
-            try:
-                # Running a try block to make sure the Token field is empty. Some api calls do not return everything in one pass
-                while response['NextToken'] is not None:
-                    response = client.list_accounts(NextToken = response['NextToken'])
-                    for account in response['Accounts']:
-                        if account['Status'] == 'ACTIVE':
-                            AccountID.append(account['Id'])
-            except KeyError:
-                continue
-    
-    return stacks
+def get_s3_objects(bucket):
+    s3 = boto3.client('s3')
+    keys = []
+    # Get all the contents of the bucket
+    response = s3.list_objects_v2(Bucket=bucket)
+    for obj in response['Contents']:
+        # Get the key value for the filename
+        key = obj['Key']
+        # Remove the file extension
+        key = key.rsplit(".")[0]
+        keys.append(key)
+    return keys
 
 # Function to deploy or update the Security stack
 def deploy_stacks(credentials, default_region, stackname, stackurl):
@@ -383,7 +367,7 @@ def lambda_handler(event, context):
             deploy_stacks(child_credentials,default_region,TestStackName,TestStackURL)
         # If test trigger lambda variable is not true then we will deploy all the stacks in the s3 bucket except the custom folder
         else:
-            stacks = GetStacks()
+            stacks = get_s3_objects(s3_template_url)
         
         # Loop through stacks that were found and build url
         for stackname in stacks:

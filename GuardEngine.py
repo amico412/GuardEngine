@@ -10,7 +10,6 @@ from pip._internal import main
 main(['install', '-I', '-q', 'boto3', '--target', '/tmp/', '--no-cache-dir', '--disable-pip-version-check'])
 sys.path.insert(0,'/tmp/')
 
-
 # Import latest version of boto3
 import boto3
 from botocore.exceptions import ClientError
@@ -20,19 +19,45 @@ import os
 import json
 
 # Lambda Environment Variables
-SecurityStackName = os.environ['SECURITY_STACK_NAME']
-SecurityStackURL = os.environ['SECURITY_STACK_URL']
-AutoTagStackName = os.environ['AUTOTAG_STACK_NAME']
-AutoTagStackURL = os.environ['AUTOTAG_STACK_URL']
-TrendStackName = os.environ['TREND_STACK_NAME']
-TrendStackURL = os.environ['TREND_STACK_URL']
-DeleteSGStackName = os.environ['DELETE_SG_STACK_NAME']
-DeleteSGStackURL = os.environ['DELETE_SG_STACK_URL']
-#TestStackName = os.environ['TEST_STACK_NAME']
-#TestStackURL = os.environ['TEST_STACK_URL']
 default_region = os.environ['DEFAULT_REGION']
 sec_account = os.environ['SECURITY_ACCOUNT']
 detectorID = os.environ['INFOSEC_DETECTORID']
+test_trigger = os.environ['TEST_TRIGGER']
+shared_role = os.environ['SHARED_ROLE']
+s3_template_url = os.environ.['S3_TEMPLATE_URL']
+
+#SecurityStackName = os.environ['SECURITY_STACK_NAME']
+#SecurityStackURL = os.environ['SECURITY_STACK_URL']
+#AutoTagStackName = os.environ['AUTOTAG_STACK_NAME']
+#AutoTagStackURL = os.environ['AUTOTAG_STACK_URL']
+#TrendStackName = os.environ['TREND_STACK_NAME']
+#TrendStackURL = os.environ['TREND_STACK_URL']
+
+# This is an exception stack and may not be on every account
+DeleteSGStackName = os.environ['DELETE_SG_STACK_NAME']
+DeleteSGStackURL = os.environ['DELETE_SG_STACK_URL']
+
+# This will only deploy an S3 bucket to make sure the Lambda function is working properly
+TestStackName = os.environ['TEST_STACK_NAME']
+TestStackURL = os.environ['TEST_STACK_URL']
+
+# Set IAM password policy
+def deploy_password_policy(credentials):
+    print("Setting password policy")
+    client = boto3.client('iam',
+                          aws_access_key_id=credentials['AccessKeyId'],
+                          aws_secret_access_key=credentials['SecretAccessKey'],
+                          aws_session_token=credentials['SessionToken'])
+    response = client.update_account_password_policy(
+        MinimumPasswordLength=15,
+        RequireSymbols=True,
+        RequireNumbers=True,
+        RequireUppercaseCharacters=True,
+        RequireLowercaseCharacters=True,
+        AllowUsersToChangePassword=True,
+        MaxPasswordAge=90,
+        PasswordReusePrevention=24)
+    return response
 
 # List accounts in the Organization
 def GetAccountIds():
@@ -80,6 +105,7 @@ def assume_role(role_arn):
     return assumedRoleObject['Credentials']
 
 # Assume role into InfoSec account and pass credentials to a parameter
+### I think we can get rid of this and just call one assume role in the for loop
 def assume_role_sec(role_arn):
     sts_client = boto3.client('sts')
     try:
@@ -91,24 +117,6 @@ def assume_role_sec(role_arn):
     except botocore.exceptions.ClientError as error:
         print(error)
     return assumedRoleObject['Credentials']
-
-# Set IAM password policy
-def deploy_password_policy(credentials):
-    print("Setting password policy")
-    client = boto3.client('iam',
-                          aws_access_key_id=credentials['AccessKeyId'],
-                          aws_secret_access_key=credentials['SecretAccessKey'],
-                          aws_session_token=credentials['SessionToken'])
-    response = client.update_account_password_policy(
-        MinimumPasswordLength=15,
-        RequireSymbols=True,
-        RequireNumbers=True,
-        RequireUppercaseCharacters=True,
-        RequireLowercaseCharacters=True,
-        AllowUsersToChangePassword=True,
-        MaxPasswordAge=90,
-        PasswordReusePrevention=24)
-    return response
 
 # Log into InfoSec account and send GuardDuty invite if not already a member
 def GuardDutyInvite(credentials, account, account_email):
@@ -255,6 +263,36 @@ def SecurityHubConfig(credentials):
     except:
         print('Security Hub invitation is already accepted') 
 
+# Function to get stackname and url from S3 bucket location
+def GetStacks():
+    client = boto3.client('s3')
+    # Clear stack array to store stack names
+    stacks = []
+
+    # THIS IS FROM GET ACCOUNT ID SO WILL NEED UPDATING
+    # Read the bucket and list the objects that end in yml
+    # strip the front https url part and the trailing .yml
+    # assign the filename as the stackname into the array
+    
+    response = client.list_accounts()
+
+    for account in response['Accounts']:
+        # Find status and only add if active since deleted accounts could show as suspended
+        if account['Status'] == 'ACTIVE':
+            # Append the id field from the dict 
+            AccountID.append(account['Id'])
+            try:
+                # Running a try block to make sure the Token field is empty. Some api calls do not return everything in one pass
+                while response['NextToken'] is not None:
+                    response = client.list_accounts(NextToken = response['NextToken'])
+                    for account in response['Accounts']:
+                        if account['Status'] == 'ACTIVE':
+                            AccountID.append(account['Id'])
+            except KeyError:
+                continue
+    
+    return stacks
+
 # Function to deploy or update the Security stack
 def deploy_stacks(credentials, default_region, stackname, stackurl):
     client = boto3.client('cloudformation',
@@ -299,14 +337,16 @@ def lambda_handler(event, context):
     # Triggers = New Account creation, S3 update, and CloudWatch weekly schedule
     print(event)
 
-    # list accounts in Org into an array
+    # Build empty AccountId array
     AccountId = []
-    # lines below for testing this will switch to listing out org members
-    #AccountId = [event['account_id']]
-    # Comment above line then uncomment below when ready for full pass
-    AccountId = GetAccountIds()
+    # If test trigger lambda variable is true then we will use the custom trigger to deploy against one account
+    if (test_trigger):
+        AccountId = [event['account_id']]
+    # If test trigger lambda variable is not true then we will call the GetAccounts function to get all the account ids from AWS Ogranizations
+    else:
+        AccountId = GetAccountIds()
 
-    # Loop through array
+    # Loop through the account array and apply configurations
     for account in AccountId:
         # find account email
         print('--------------------')
@@ -314,32 +354,48 @@ def lambda_handler(event, context):
         account_email = GetAccountEmail(account)
         print(account_email)
 
-        # Assume role into Infosec
-        sec_role_arn = 'arn:aws:iam::' + sec_account + ':role/FullAdmin'
+        # Assume role into Audit account
+        sec_role_arn = 'arn:aws:iam::' + sec_account + ':role/' + shared_role
         security_credentials = assume_role_sec(sec_role_arn)
     
-        # Check for account in GuardDuty and add member if it doesn't exist
-        #if account != sec_account:
-        #    GuardDutyInvite(security_credentials,account,account_email)
+        # Check for account in GuardDuty, add member, and send invite if it doesn't exist
+        if account != sec_account:
+            GuardDutyInvite(security_credentials,account,account_email)
     
-        # Check for account in Security Hub and add member if it doesn't exist
-        #if account != sec_account:
-        #    SecurityHubInvite(security_credentials,account,account_email)
+        # Check for account in Security Hub, add member, and send invite if it doesn't exist
+        if account != sec_account:
+            SecurityHubInvite(security_credentials,account,account_email)
 
         # Assume role into child account
-        org_role_arn = 'arn:aws:iam::' + account + ':role/FullAdmin'
-        child_credentials = assume_role(org_role_arn)
-        # Logic to not continue if exception was found to assume role
+        org_role_arn = 'arn:aws:iam::' + account + ':role/' + shared_role
+        try:
+            child_credentials = assume_role(org_role_arn)
+        except botocore.exceptions.ClientError as error:
+            print(error)
 
         # Deploy password policy
         deploy_password_policy(child_credentials)
         
+        # Build stack array by reading S3 template bucket
+        stacks = []
+        # If test trigger lambda variable is true then we will use the test stack name and url
+        if (test_trigger):
+            deploy_stacks(child_credentials,default_region,TestStackName,TestStackURL)
+        # If test trigger lambda variable is not true then we will deploy all the stacks in the s3 bucket except the custom folder
+        else:
+            stacks = GetStacks()
+        
+        # Loop through stacks that were found and build url
+        for stackname in stacks:
+            # Build stack URL
+            stackurl = s3_template_url + '/' + stackname + '.yaml'
+            deploy_stacks(child_credentials,default_region,stackname,stackurl)
+        
+        # REMOVE THESE AND CREATE IF STATEMENT TO READ FROM S3
         # Deploy the security baseline cloudformation stack
         #deploy_stacks(child_credentials,default_region,SecurityStackName,SecurityStackURL)
-
         # Deploy the AutoTag cloudformation stack
         #deploy_stacks(child_credentials,default_region,AutoTagStackName,AutoTagStackURL)
-
         # Deploy the Trend cloudformation stack
         #deploy_stacks(child_credentials,default_region,TrendStackName,TrendStackURL)
 
@@ -347,47 +403,18 @@ def lambda_handler(event, context):
         # Placeholder to have exclusion for future production accounts that do need 0.0.0.0 open
         # Change as needed or add another or statement to include additional accounts for exclusion
         if account != '123456789' or account != '987654321':
-            deploy_stacks(child_credentials,default_region,DeleteSGStackName,DeleteSGStackURL)        
-
-        # Deploy the test cloudformation stack
-        deploy_stacks(child_credentials,default_region,TestStackName,TestStackURL)
+            deploy_stacks(child_credentials,default_region,DeleteSGStackName,DeleteSGStackURL)
 
         #Accept the GuardDuty invite from InfoSec account
-        #if account != sec_account:
-        #    GuardDutyConfig(child_credentials)
+        if account != sec_account:
+            try:
+                GuardDutyConfig(child_credentials)
+            except botocore.exceptions.ClientError as error:
+                print(error)
 
         # Accept the securityHub invite from InfoSec account
-        #if account != sec_account:
-        #    SecurityHubConfig(child_credentials)
-
-
-
-
-
-# ---------------------------------------------------------------------------------------------------------------------
-# items to add
-# If encounter an exception send sns email
-# Ensure S3 bucket is encrypted
-# Detect drift in CF template and send sns notification
-
-
-
-
-# Clean up existing resources to deploy through stack
-#--------------------------------
-# Delete operation role
-# Delete Operation policy 
-# Delete Cloudwatch log group
-# Delete AWS Config recorder
-    #Create new admin user and get access key
-    #aws configure (enter access key)
-    #aws configservice describe-configuration-recorders
-    # get the name then run
-    #aws configservice delete-configuration-recorder --configuration-recorder-name default
-    # replace default with the name of the recorder
-# Delete AWSconfig service role
-# Delete AWS Config Delivery channel
-    #aws configservice describe-delivery-channels
-    #aws configservice delete-delivery-channel --delivery-channel-name default
-    # replace default with the channel name
-# Delete CloudTrail Trail
+        if account != sec_account:
+            try:
+                SecurityHubConfig(child_credentials)
+            except botocore.exceptions.ClientError as error:
+                print(error)

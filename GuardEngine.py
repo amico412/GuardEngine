@@ -263,7 +263,7 @@ def SecurityHubConfig(credentials):
     except:
         print('Security Hub invitation is already accepted') 
 
-# Function to get stackname and url from S3 bucket location
+# Function to get stackname from S3 bucket location
 def get_s3_objects(bucket):
     s3 = boto3.client('s3')
     keys = []

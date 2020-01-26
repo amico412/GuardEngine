@@ -27,13 +27,6 @@ test_trigger = os.environ['TEST_TRIGGER']
 shared_role = os.environ['SHARED_ROLE']
 s3_template_bucket = os.environ['S3_TEMPLATE_BUCKET']
 
-#SecurityStackName = os.environ['SECURITY_STACK_NAME']
-#SecurityStackURL = os.environ['SECURITY_STACK_URL']
-#AutoTagStackName = os.environ['AUTOTAG_STACK_NAME']
-#AutoTagStackURL = os.environ['AUTOTAG_STACK_URL']
-#TrendStackName = os.environ['TREND_STACK_NAME']
-#TrendStackURL = os.environ['TREND_STACK_URL']
-
 # This is an exception stack and may not be on every account
 #DeleteSGStackName = os.environ['DELETE_SG_STACK_NAME']
 #DeleteSGStackURL = os.environ['DELETE_SG_STACK_URL']
@@ -356,7 +349,7 @@ def lambda_handler(event, context):
             org_role_arn = 'arn:aws:iam::' + account + ':role/' + shared_role
         else:
             org_role_arn = 'arn:aws:iam::' + account + ':role/FullAdmin'
-            
+
         try:
             child_credentials = assume_role(org_role_arn)
         except botocore.exceptions.ClientError as error:
@@ -379,14 +372,6 @@ def lambda_handler(event, context):
             # Build stack URL
             stackurl = 'https://' + s3_template_bucket + '.s3.amazonaws.com/' + stackname + '.yml'
             deploy_stacks(child_credentials,default_region,stackname,stackurl)
-        
-        # REMOVE THESE AND CREATE IF STATEMENT TO READ FROM S3
-        # Deploy the security baseline cloudformation stack
-        #deploy_stacks(child_credentials,default_region,SecurityStackName,SecurityStackURL)
-        # Deploy the AutoTag cloudformation stack
-        #deploy_stacks(child_credentials,default_region,AutoTagStackName,AutoTagStackURL)
-        # Deploy the Trend cloudformation stack
-        #deploy_stacks(child_credentials,default_region,TrendStackName,TrendStackURL)
 
         # Deploy the Delete Security Group cloudformation stack
         # Placeholder to have exclusion for future production accounts that do need 0.0.0.0 open

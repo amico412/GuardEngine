@@ -3,6 +3,7 @@ GuardEngine is an automated solution to set security baselines across multiple a
 
 # GuardEngine Requirements:
 Audit account needs to have GuardDuty and SecurityHub already setup. The detector ID will be provided in the Lambda variables sections.
+Master account must have a FullAdmin role that the master account can assume. In LandingZone/ControlTower environments this is different then what is in the child accounts.
 
 S3 bucket created in the Master account with the bucket policy below to allow all accounts in the organization to read the contents. This will be used as a central location to share CloudFormation templates. Also make sure the names of the yaml files are what you want them to show up as in CloudFormation. We use the bucket and filename to build the stack name to minimize any code changes for new templates that are added in the future. 
 
@@ -49,6 +50,7 @@ Switch individual CF stacks to an array loop and just execute everything in the 
 Turn Lambda function creation into a CloudFormation template so everything is automated
 Deploy shared Service Catalog portfolios to child accounts
 Test removing the second assume function for the infosec account. probably only need one
+If a CloudFormation template is deleted then the stack should be removed from accounts. Currently it does nothing.
 
 # Troubleshooting
 If existing child accounts have any of the following they will need to be deleted or removed. 

@@ -21,10 +21,11 @@ import json
 # Lambda Environment Variables
 default_region = os.environ['DEFAULT_REGION']
 sec_account = os.environ['SECURITY_ACCOUNT']
+master_account = os.environ['MASTER_ACCOUNT']
 detectorID = os.environ['INFOSEC_DETECTORID']
 test_trigger = os.environ['TEST_TRIGGER']
 shared_role = os.environ['SHARED_ROLE']
-s3_template_url = os.environ['S3_TEMPLATE_URL']
+s3_template_bucket = os.environ['S3_TEMPLATE_BUCKET']
 
 #SecurityStackName = os.environ['SECURITY_STACK_NAME']
 #SecurityStackURL = os.environ['SECURITY_STACK_URL']
@@ -34,12 +35,12 @@ s3_template_url = os.environ['S3_TEMPLATE_URL']
 #TrendStackURL = os.environ['TREND_STACK_URL']
 
 # This is an exception stack and may not be on every account
-DeleteSGStackName = os.environ['DELETE_SG_STACK_NAME']
-DeleteSGStackURL = os.environ['DELETE_SG_STACK_URL']
+#DeleteSGStackName = os.environ['DELETE_SG_STACK_NAME']
+#DeleteSGStackURL = os.environ['DELETE_SG_STACK_URL']
 
 # This will only deploy an S3 bucket to make sure the Lambda function is working properly
-TestStackName = os.environ['TEST_STACK_NAME']
-TestStackURL = os.environ['TEST_STACK_URL']
+#TestStackName = os.environ['TEST_STACK_NAME']
+#TestStackURL = os.environ['TEST_STACK_URL']
 
 # Set IAM password policy
 def deploy_password_policy(credentials):
@@ -324,7 +325,7 @@ def lambda_handler(event, context):
     # Build empty AccountId array
     AccountId = []
     # If test trigger lambda variable is true then we will use the custom trigger to deploy against one account
-    if (test_trigger):
+    if test_trigger == 'true':
         AccountId = [event['account_id']]
     # If test trigger lambda variable is not true then we will call the GetAccounts function to get all the account ids from AWS Ogranizations
     else:
@@ -351,7 +352,11 @@ def lambda_handler(event, context):
             SecurityHubInvite(security_credentials,account,account_email)
 
         # Assume role into child account
-        org_role_arn = 'arn:aws:iam::' + account + ':role/' + shared_role
+        if account != master_account:
+            org_role_arn = 'arn:aws:iam::' + account + ':role/' + shared_role
+        else:
+            org_role_arn = 'arn:aws:iam::' + account + ':role/FullAdmin'
+            
         try:
             child_credentials = assume_role(org_role_arn)
         except botocore.exceptions.ClientError as error:
@@ -363,16 +368,16 @@ def lambda_handler(event, context):
         # Build stack array by reading S3 template bucket
         stacks = []
         # If test trigger lambda variable is true then we will use the test stack name and url
-        if (test_trigger):
+        if test_trigger == 'true':
             deploy_stacks(child_credentials,default_region,TestStackName,TestStackURL)
         # If test trigger lambda variable is not true then we will deploy all the stacks in the s3 bucket except the custom folder
         else:
-            stacks = get_s3_objects(s3_template_url)
+            stacks = get_s3_objects(s3_template_bucket)
         
         # Loop through stacks that were found and build url
         for stackname in stacks:
             # Build stack URL
-            stackurl = s3_template_url + '/' + stackname + '.yaml'
+            stackurl = 'https://' + s3_template_bucket + '.s3.amazonaws.com/' + stackname + '.yml'
             deploy_stacks(child_credentials,default_region,stackname,stackurl)
         
         # REMOVE THESE AND CREATE IF STATEMENT TO READ FROM S3
@@ -386,8 +391,8 @@ def lambda_handler(event, context):
         # Deploy the Delete Security Group cloudformation stack
         # Placeholder to have exclusion for future production accounts that do need 0.0.0.0 open
         # Change as needed or add another or statement to include additional accounts for exclusion
-        if account != '123456789' or account != '987654321':
-            deploy_stacks(child_credentials,default_region,DeleteSGStackName,DeleteSGStackURL)
+        #if account != '123456789' or account != '987654321':
+        #    deploy_stacks(child_credentials,default_region,DeleteSGStackName,DeleteSGStackURL)
 
         #Accept the GuardDuty invite from InfoSec account
         if account != sec_account:

@@ -27,14 +27,6 @@ test_trigger = os.environ['TEST_TRIGGER']
 shared_role = os.environ['SHARED_ROLE']
 s3_template_bucket = os.environ['S3_TEMPLATE_BUCKET']
 
-# This is an exception stack and may not be on every account
-#DeleteSGStackName = os.environ['DELETE_SG_STACK_NAME']
-#DeleteSGStackURL = os.environ['DELETE_SG_STACK_URL']
-
-# This will only deploy an S3 bucket to make sure the Lambda function is working properly
-#TestStackName = os.environ['TEST_STACK_NAME']
-#TestStackURL = os.environ['TEST_STACK_URL']
-
 # Set IAM password policy
 def deploy_password_policy(credentials):
     print("Setting password policy")
@@ -266,9 +258,11 @@ def get_s3_objects(bucket):
     for obj in response['Contents']:
         # Get the key value for the filename
         key = obj['Key']
-        # Remove the file extension
-        key = key.rsplit(".")[0]
-        keys.append(key)
+        # Exclude any keys that have a forward slash indicating a different folder
+        if not "/" in key:
+            # Remove the file extension
+            key = key.rsplit(".")[0]
+            keys.append(key)
     return keys
 
 # Function to deploy or update the Security stack
@@ -362,8 +356,11 @@ def lambda_handler(event, context):
         stacks = []
         # If test trigger lambda variable is true then we will use the test stack name and url
         if test_trigger == 'true':
-            deploy_stacks(child_credentials,default_region,TestStackName,TestStackURL)
-        # If test trigger lambda variable is not true then we will deploy all the stacks in the s3 bucket except the custom folder
+            stackname = 'TestStack'
+            stackurl = 'https://' + s3_template_bucket + '.s3.amazonaws.com/exclusions/TESTstack.yml'
+            deploy_stacks(child_credentials,default_region,stackname,stackurl)
+        
+        # If test trigger lambda variable is not true then we will deploy all the stacks in the s3 bucket except the exclusions folder
         else:
             stacks = get_s3_objects(s3_template_bucket)
         
@@ -374,10 +371,11 @@ def lambda_handler(event, context):
             deploy_stacks(child_credentials,default_region,stackname,stackurl)
 
         # Deploy the Delete Security Group cloudformation stack
-        # Placeholder to have exclusion for future production accounts that do need 0.0.0.0 open
-        # Change as needed or add another or statement to include additional accounts for exclusion
-        #if account != '123456789' or account != '987654321':
-        #    deploy_stacks(child_credentials,default_region,DeleteSGStackName,DeleteSGStackURL)
+        # Change as needed or add another "or" statement to include additional accounts for exclusion
+        if account != '123456789' or account != '987654321':
+            DelSGstackname = 'DeleteOpenSecurityGroup'
+            DelSGstackurl = 'https://' + s3_template_bucket + '.s3.amazonaws.com/exclusions/DeleteOpenSecurityGroup.yml'
+            deploy_stacks(child_credentials,default_region,DelSGstackname,DelSGstackurl)
 
         #Accept the GuardDuty invite from InfoSec account
         if account != sec_account:

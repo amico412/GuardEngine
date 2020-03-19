@@ -7,13 +7,53 @@ Master account must have a FullAdmin role that the master account can assume. In
 
 S3 bucket created in the Master account with the bucket policy below to allow all accounts in the organization to read the contents. This will be used as a central location to share CloudFormation templates. Also make sure the names of the yaml files are what you want them to show up as in CloudFormation. We use the bucket and filename to build the stack name to minimize any code changes for new templates that are added in the future. 
 
-A shared role that allows the master account access to all the child accounts to enable GuardDuty, SecurityHub, set password policies, and deploy CloudFormation templates. If ControlTower is deployed this would be the "AWSControlTowerExecution" role that is automatically created. In the LandingZone deployment scripts this is "". 
+A shared role that allows the master account access to all the child accounts to enable GuardDuty, SecurityHub, set password policies, and deploy CloudFormation templates. If ControlTower is deployed this would be the "AWSControlTowerExecution" role that is automatically created. 
 
 # Setup
 Create an S3 bucket for standard cloudformation templates
-Create an S3 folder in the bucket above for exception templates
+Create an S3 folder called "exclusions" in the bucket above for templates that won't be deployed to every account.
+Create an SNS topic with the name "DeleteOpenSecurityGroup-SnsTopic" and the Access policy below, replacing the values for the OrganizationID and IAM account number.
 Create a Lambda IAM role with the policy below in order to read Accounts IDs from AWS Organizations.
-Create a Lambda function with the GuardEngine python file
+Create a Lambda function with the GuardEngine python file and the variables below
+    DEFAULT_REGION
+    SECURITY_ACCOUNT
+    MASTER_ACCOUNT
+    INFOSEC_DETECTORID
+    TEST_TRIGGER
+    SHARED_ROLE
+    S3_TEMPLATE_BUCKET
+Create triggers to execute Lambda function automatically
+    Cloudwatch event with cron job every Sunday
+    Cloudwatch event for new or update CloudFormation templates in S3 Bucket
+    Cloudwatch even for new accounts added
+    Manual Trigger from Lambda console
+
+# Lambda policy
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+                "logs:CreateLogGroup"
+            ],
+            "Resource": "arn:aws:logs:*:*:*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "sts:AssumeRole",
+                "organizations:DescribeCreateAccountStatus",
+                "organizations:DescribeAccount",
+                "organizations:ListAccounts",
+                "s3:*"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
 
 # S3 Bucket policy
 {
@@ -41,16 +81,59 @@ Create a Lambda function with the GuardEngine python file
     ]
 }
 
+# SNS Access policy
+{
+  "Version": "2008-10-17",
+  "Statement": [
+    {
+      "Sid": "__default_statement_ID",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "*"
+      },
+      "Action": [
+        "SNS:GetTopicAttributes",
+        "SNS:SetTopicAttributes",
+        "SNS:AddPermission",
+        "SNS:RemovePermission",
+        "SNS:DeleteTopic",
+        "SNS:Subscribe",
+        "SNS:ListSubscriptionsByTopic",
+        "SNS:Publish",
+        "SNS:Receive"
+      ],
+      "Resource": "arn:aws:sns:us-east-1:ACCOUNTNUMBER:DeleteOpenSecurityGroup-SnsTopic",
+      "Condition": {
+        "StringEquals": {
+          "AWS:SourceOwner": "ACCOUNTNUMBER"
+        }
+      }
+    },
+    {
+      "Sid": "AWSSNSPolicy",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "*"
+      },
+      "Action": "sns:Publish",
+      "Resource": "arn:aws:sns:us-east-1:ACCOUNTNUMBER:DeleteOpenSecurityGroup-SnsTopic",
+      "Condition": {
+        "StringEquals": {
+          "aws:PrincipalOrgID": "o-ORGID"
+        }
+      }
+    }
+  ]
+}
 
 # Items to add:
 If encounter an exception send sns notification
 Ensure S3 bucket is encrypted
 Detect drift in CF template and send sns notification
-Switch individual CF stacks to an array loop and just execute everything in the S3 bucket. Create an exceptions folder for one off stacks that shouldn't be on every account
 Turn Lambda function creation into a CloudFormation template so everything is automated
 Deploy shared Service Catalog portfolios to child accounts
 Test removing the second assume function for the infosec account. probably only need one
-If a CloudFormation template is deleted then the stack should be removed from accounts. Currently it does nothing.
+If a CloudFormation template is deleted then the stack should be removed from accounts. Currently it does nothing. Would need to tag stack that was created with GuardEngine so there is a condition to key off of as well so we don't delete manual stacks.
 
 # Troubleshooting
 If existing child accounts have any of the following they will need to be deleted or removed. 

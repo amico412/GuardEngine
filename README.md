@@ -12,7 +12,7 @@ A shared role that allows the master account access to all the child accounts to
 # Setup
 Create an S3 bucket for standard cloudformation templates
 Create an S3 folder called "exclusions" in the bucket above for templates that won't be deployed to every account.
-Create an SNS topic with the name "DeleteOpenSecurityGroup-SnsTopic" and the Access policy below, replacing the values for the OrganizationID and IAM account number.
+Create an SNS topic in the Audit account with the name "DeleteOpenSecurityGroup-SnsTopic" and the Access policy below, replacing the values for the ACCOUNTNUMBER and ORGID.
 Create a Lambda IAM role with the policy below in order to read Accounts IDs from AWS Organizations.
 Create a Lambda function with the GuardEngine python file and the variables below
     DEFAULT_REGION
@@ -25,7 +25,7 @@ Create a Lambda function with the GuardEngine python file and the variables belo
 Create triggers to execute Lambda function automatically
     Cloudwatch event with cron job every Sunday
     Cloudwatch event for new or update CloudFormation templates in S3 Bucket
-    Cloudwatch even for new accounts added
+    Cloudwatch event for new accounts added
     Manual Trigger from Lambda console
 
 # Lambda policy

@@ -363,16 +363,15 @@ def lambda_handler(event, context):
         # If test trigger lambda variable is not true then we will deploy all the stacks in the s3 bucket except the exclusions folder
         else:
             stacks = get_s3_objects(s3_template_bucket)
-        
-        # Loop through stacks that were found and build url
-        for stackname in stacks:
-            # Build stack URL
-            stackurl = 'https://' + s3_template_bucket + '.s3.amazonaws.com/' + stackname + '.yml'
-            deploy_stacks(child_credentials,default_region,stackname,stackurl)
+            # Loop through stacks that were found and build url
+            for stackname in stacks:
+                # Build stack URL
+                stackurl = 'https://' + s3_template_bucket + '.s3.amazonaws.com/' + stackname + '.yml'
+                deploy_stacks(child_credentials,default_region,stackname,stackurl)
 
         # Deploy the Delete Security Group cloudformation stack
-        # Change as needed or add another "or" statement to include additional accounts for exclusion
-        if account != '123456789' or account != '987654321':
+        # Change as needed to exclude certain accounts from getting the stack
+        if account not in [016890443483, 987654321]:
             DelSGstackname = 'DeleteOpenSecurityGroup'
             DelSGstackurl = 'https://' + s3_template_bucket + '.s3.amazonaws.com/exclusions/DeleteOpenSecurityGroup.yml'
             deploy_stacks(child_credentials,default_region,DelSGstackname,DelSGstackurl)

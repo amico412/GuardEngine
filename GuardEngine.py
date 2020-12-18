@@ -387,7 +387,9 @@ def lambda_handler(event, context):
 
         # Deploy the Delete Security Group cloudformation stack
         # Change as needed to exclude certain accounts from getting the stack
-        if account not in [016890443483, 987654321]:
+        # for any accounts that start with a zero(0) add the letter (o) after the zero
+        # Example = 012345 would be 0o12345
+        if account not in [0o16890443483, 987654321]:
             DelSGstackname = 'DeleteOpenSecurityGroup'
             DelSGstackurl = 'https://' + s3_template_bucket + '.s3.amazonaws.com/exclusions/DeleteOpenSecurityGroup.yml'
             deploy_stacks(child_credentials,default_region,DelSGstackname,DelSGstackurl)

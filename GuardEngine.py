@@ -26,6 +26,7 @@ detectorID = os.environ['INFOSEC_DETECTORID']
 test_trigger = os.environ['TEST_TRIGGER']
 shared_role = os.environ['SHARED_ROLE']
 s3_template_bucket = os.environ['S3_TEMPLATE_BUCKET']
+ebs_encrypt = os.environ['EBS_ENCRYPT']
 
 # Set IAM password policy
 def deploy_password_policy(credentials):
@@ -302,6 +303,21 @@ def deploy_stacks(credentials, default_region, stackname, stackurl):
         except botocore.exceptions.ClientError as error:
             print('No changes to existing',stackname,'stack')
 
+# Function to opt-in at account level to encrypt all EBS volumes
+def enable_ebs_encryption(credentials):
+    client = boto3.client('ec2',
+                        aws_access_key_id=credentials['AccessKeyId'],
+                        aws_secret_access_key=credentials['SecretAccessKey'],
+                        aws_session_token=credentials['SessionToken'])
+    try:
+        # Enable Encryption
+        enableEncryption = client.enable_ebs_encryption_by_default()
+        print ("EBS Encryption enabled")
+
+    except:
+        print("EBS Encrytpion already enabled")
+        result = status["EbsEncryptionByDefault"]
+
 def lambda_handler(event, context):
     print("boto3 version:"+boto3.__version__)
     print("botocore version:"+botocore.__version__)
@@ -389,3 +405,7 @@ def lambda_handler(event, context):
                 SecurityHubConfig(child_credentials)
             except botocore.exceptions.ClientError as error:
                 print(error)
+        
+        # Opt-in for EBS encryption at account level
+        if ebs_encrypt == 'true':
+            enable_ebs_encryption(child_credentials)

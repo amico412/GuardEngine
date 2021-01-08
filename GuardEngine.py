@@ -87,9 +87,12 @@ def assume_role(role_arn):
             RoleArn=role_arn,
             RoleSessionName='GuardEngine'
         )
+        return assumedRoleObject['Credentials']
+
     except botocore.exceptions.ClientError as error:
+        pass
+        print('Could not assume role into child account: ')
         print(error)
-    return assumedRoleObject['Credentials']
 
 # Assume role into InfoSec account and pass credentials to a parameter
 ### I think we can get rid of this and just call one assume role in the for loop
@@ -354,60 +357,76 @@ def lambda_handler(event, context):
         if account != sec_account:
             SecurityHubInvite(security_credentials,account,account_email)
 
-        # Assume role into child account
+        # Assume role into child account and execute governance items
         if account != master_account:
             org_role_arn = 'arn:aws:iam::' + account + ':role/' + shared_role
         else:
             org_role_arn = 'arn:aws:iam::' + account + ':role/FullAdmin'
 
         try:
+            # Assume role into child account as the Full Admin org or Control Tower role
             child_credentials = assume_role(org_role_arn)
+
+            # If statement to make sure we can assume a role into the account so that we don't stop the loop   
+            if child_credentials != None:
+                
+                # ----------------------
+                # Deploy password policy
+                # ----------------------
+
+                deploy_password_policy(child_credentials)
+
+                # ----------------------------------------------
+                # Deploy Cloudformation templates from S3 bucket
+                # ----------------------------------------------
+
+                # Build stack array by reading S3 template bucket
+                stacks = []
+                # If test trigger lambda variable is true then we will use the test stack name and url
+                if test_trigger == 'true':
+                    stackname = 'TestStack'
+                    stackurl = 'https://' + s3_template_bucket + '.s3.amazonaws.com/exclusions/TESTstack.yml'
+                    deploy_stacks(child_credentials,default_region,stackname,stackurl)
+                
+                # If test trigger lambda variable is not true then we will deploy all the stacks in the s3 bucket except the exclusions folder
+                else:
+                    stacks = get_s3_objects(s3_template_bucket)
+                    # Loop through stacks that were found and build url
+                    for stackname in stacks:
+                        # Build stack URL
+                        stackurl = 'https://' + s3_template_bucket + '.s3.amazonaws.com/' + stackname + '.yml'
+                        deploy_stacks(child_credentials,default_region,stackname,stackurl)
+
+                # ----------------------------------------------
+                # Deploy excluded Cloudformation templates from S3 bucket
+                # ----------------------------------------------
+
+                # Deploy the Delete Security Group cloudformation stack
+                # Change as needed to exclude certain accounts from getting the stack
+                if account not in ["016890443483", "987654321111"]:
+                    DelSGstackname = 'DeleteOpenSecurityGroup'
+                    DelSGstackurl = 'https://' + s3_template_bucket + '.s3.amazonaws.com/exclusions/DeleteOpenSecurityGroup.yml'
+                    deploy_stacks(child_credentials,default_region,DelSGstackname,DelSGstackurl)
+
+                #Accept the GuardDuty invite from InfoSec account
+                if account != sec_account:
+                    try:
+                        GuardDutyConfig(child_credentials)
+                    except botocore.exceptions.ClientError as error:
+                        print(error)
+
+                # Accept the securityHub invite from InfoSec account
+                if account != sec_account:
+                    try:
+                        SecurityHubConfig(child_credentials)
+                    except botocore.exceptions.ClientError as error:
+                        print(error)
+                
+                # Opt-in for EBS encryption at account level
+                if ebs_encrypt == 'true':
+                    enable_ebs_encryption(child_credentials)
+
         except botocore.exceptions.ClientError as error:
-            print(error)
-
-        # Deploy password policy
-        deploy_password_policy(child_credentials)
-        
-        # Build stack array by reading S3 template bucket
-        stacks = []
-        # If test trigger lambda variable is true then we will use the test stack name and url
-        if test_trigger == 'true':
-            stackname = 'TestStack'
-            stackurl = 'https://' + s3_template_bucket + '.s3.amazonaws.com/exclusions/TESTstack.yml'
-            deploy_stacks(child_credentials,default_region,stackname,stackurl)
-        
-        # If test trigger lambda variable is not true then we will deploy all the stacks in the s3 bucket except the exclusions folder
-        else:
-            stacks = get_s3_objects(s3_template_bucket)
-            # Loop through stacks that were found and build url
-            for stackname in stacks:
-                # Build stack URL
-                stackurl = 'https://' + s3_template_bucket + '.s3.amazonaws.com/' + stackname + '.yml'
-                deploy_stacks(child_credentials,default_region,stackname,stackurl)
-
-        # Deploy the Delete Security Group cloudformation stack
-        # Change as needed to exclude certain accounts from getting the stack
-        # for any accounts that start with a zero(0) add the letter (o) after the zero
-        # Example = 012345 would be 0o12345
-        if account not in [0o16890443483, 987654321]:
-            DelSGstackname = 'DeleteOpenSecurityGroup'
-            DelSGstackurl = 'https://' + s3_template_bucket + '.s3.amazonaws.com/exclusions/DeleteOpenSecurityGroup.yml'
-            deploy_stacks(child_credentials,default_region,DelSGstackname,DelSGstackurl)
-
-        #Accept the GuardDuty invite from InfoSec account
-        if account != sec_account:
-            try:
-                GuardDutyConfig(child_credentials)
-            except botocore.exceptions.ClientError as error:
-                print(error)
-
-        # Accept the securityHub invite from InfoSec account
-        if account != sec_account:
-            try:
-                SecurityHubConfig(child_credentials)
-            except botocore.exceptions.ClientError as error:
-                print(error)
-        
-        # Opt-in for EBS encryption at account level
-        if ebs_encrypt == 'true':
-            enable_ebs_encryption(child_credentials)
+            # Logging error but continue on with script
+            pass
+            print("Error occured in: " + account)

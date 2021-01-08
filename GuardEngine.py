@@ -27,6 +27,7 @@ test_trigger = os.environ['TEST_TRIGGER']
 shared_role = os.environ['SHARED_ROLE']
 s3_template_bucket = os.environ['S3_TEMPLATE_BUCKET']
 ebs_encrypt = os.environ['EBS_ENCRYPT']
+excluded_accounts = os.environ['EXCLUDED_ACCOUNTS']
 
 # Set IAM password policy
 def deploy_password_policy(credentials):
@@ -403,7 +404,8 @@ def lambda_handler(event, context):
 
                 # Deploy the Delete Security Group cloudformation stack
                 # Change as needed to exclude certain accounts from getting the stack
-                if account not in ["016890443483", "987654321111"]:
+                #if account not in ["016890443483", "987654321111"]:
+                if account not in excluded_accounts:
                     DelSGstackname = 'DeleteOpenSecurityGroup'
                     DelSGstackurl = 'https://' + s3_template_bucket + '.s3.amazonaws.com/exclusions/DeleteOpenSecurityGroup.yml'
                     deploy_stacks(child_credentials,default_region,DelSGstackname,DelSGstackurl)

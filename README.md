@@ -25,31 +25,6 @@ A shared role that allows the master account access to all the child accounts to
     * Enable default EBS encryption
     * Excluded accounts (Ex: "12345","54321")
 * Create triggers to execute Lambda function automatically
-   * Cloudwatch event with cron job every Sunday
-```
-```
-   * Cloudwatch event for new or updated CloudFormation templates in S3 Bucket
-```
-```
-   * Cloudwatch event for new accounts added
-```
- {
-  "source": [
-    "aws.organizations"
-  ],
-  "detail-type": [
-    "AWS Service Event via CloudTrail"
-  ],
-  "detail": {
-    "eventSource": [
-      "organizations.amazonaws.com"
-    ],
-    "eventName": [
-      "CreateAccountResult"
-    ]
-  }
-}
-```
 # Lambda policy
     {
         "Version": "2012-10-17",
@@ -147,6 +122,33 @@ A shared role that allows the master account access to all the child accounts to
         }
       ]
     }
+
+# CloudWatch Triggers
+   * Cloudwatch event with cron job every Sunday
+```
+```
+   * Cloudwatch event for new or updated CloudFormation templates in S3 Bucket
+```
+```
+   * Cloudwatch event for new accounts added
+```
+ {
+  "source": [
+    "aws.organizations"
+  ],
+  "detail-type": [
+    "AWS Service Event via CloudTrail"
+  ],
+  "detail": {
+    "eventSource": [
+      "organizations.amazonaws.com"
+    ],
+    "eventName": [
+      "CreateAccountResult"
+    ]
+  }
+}
+```
 # Items to add:
 * If encounter an exception send sns notification
 * Automate setup with CloudFormation

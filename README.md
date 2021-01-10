@@ -25,9 +25,9 @@ A shared role that allows the master account access to all the child accounts to
     * Enable default EBS encryption
     * Excluded accounts (Ex: "12345","54321")
 * Create triggers to execute Lambda function automatically
- * Cloudwatch event with cron job every Sunday
- * Cloudwatch event for new or updated CloudFormation templates in S3 Bucket
- * Cloudwatch event for new accounts added
+   * Cloudwatch event with cron job every Sunday
+   * Cloudwatch event for new or updated CloudFormation templates in S3 Bucket
+   * Cloudwatch event for new accounts added
 ```
  {
   "source": [
@@ -46,7 +46,7 @@ A shared role that allows the master account access to all the child accounts to
   }
 }
 ```
- * Manual Trigger from Lambda console
+   * Manual Trigger from Lambda console
 
 # Lambda policy
     {

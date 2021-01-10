@@ -58,94 +58,92 @@ A shared role that allows the master account access to all the child accounts to
     }
 
 # S3 Bucket policy
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Sid": "SharedArtifacts",
-            "Effect": "Allow",
-            "Principal": "*",
-            "Action": [
-                "s3:GetBucketLocation",
-                "s3:ListBucket",
-                "s3:GetObject"
-            ],
-            "Resource": [
-                "arn:aws:s3:::BUCKETNAME",
-                "arn:aws:s3:::BUCKETNAME/*"
-            ],
-            "Condition": {
-                "StringEquals": {
-                    "aws:PrincipalOrgID": "ORGID"
+    {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Sid": "SharedArtifacts",
+                "Effect": "Allow",
+                "Principal": "*",
+                "Action": [
+                    "s3:GetBucketLocation",
+                    "s3:ListBucket",
+                    "s3:GetObject"
+                ],
+                "Resource": [
+                    "arn:aws:s3:::BUCKETNAME",
+                    "arn:aws:s3:::BUCKETNAME/*"
+                ],
+                "Condition": {
+                    "StringEquals": {
+                        "aws:PrincipalOrgID": "ORGID"
+                    }
                 }
             }
-        }
-    ]
-}
+        ]
+    }
 
 # SNS Access policy
-{
-  "Version": "2008-10-17",
-  "Statement": [
     {
-      "Sid": "__default_statement_ID",
-      "Effect": "Allow",
-      "Principal": {
-        "AWS": "*"
-      },
-      "Action": [
-        "SNS:GetTopicAttributes",
-        "SNS:SetTopicAttributes",
-        "SNS:AddPermission",
-        "SNS:RemovePermission",
-        "SNS:DeleteTopic",
-        "SNS:Subscribe",
-        "SNS:ListSubscriptionsByTopic",
-        "SNS:Publish",
-        "SNS:Receive"
-      ],
-      "Resource": "arn:aws:sns:us-east-1:ACCOUNTNUMBER:DeleteOpenSecurityGroup-SnsTopic",
-      "Condition": {
-        "StringEquals": {
-          "AWS:SourceOwner": "ACCOUNTNUMBER"
+      "Version": "2008-10-17",
+      "Statement": [
+        {
+          "Sid": "__default_statement_ID",
+          "Effect": "Allow",
+          "Principal": {
+            "AWS": "*"
+          },
+          "Action": [
+            "SNS:GetTopicAttributes",
+            "SNS:SetTopicAttributes",
+            "SNS:AddPermission",
+            "SNS:RemovePermission",
+            "SNS:DeleteTopic",
+            "SNS:Subscribe",
+            "SNS:ListSubscriptionsByTopic",
+            "SNS:Publish",
+            "SNS:Receive"
+          ],
+          "Resource": "arn:aws:sns:us-east-1:ACCOUNTNUMBER:DeleteOpenSecurityGroup-SnsTopic",
+          "Condition": {
+            "StringEquals": {
+              "AWS:SourceOwner": "ACCOUNTNUMBER"
+            }
+          }
+        },
+        {
+          "Sid": "AWSSNSPolicy",
+          "Effect": "Allow",
+          "Principal": {
+            "AWS": "*"
+          },
+          "Action": "sns:Publish",
+          "Resource": "arn:aws:sns:us-east-1:ACCOUNTNUMBER:DeleteOpenSecurityGroup-SnsTopic",
+          "Condition": {
+            "StringEquals": {
+               "aws:PrincipalOrgID": "o-ORGID"
+            }
+          }
         }
-      }
-    },
-    {
-      "Sid": "AWSSNSPolicy",
-      "Effect": "Allow",
-      "Principal": {
-        "AWS": "*"
-      },
-      "Action": "sns:Publish",
-      "Resource": "arn:aws:sns:us-east-1:ACCOUNTNUMBER:DeleteOpenSecurityGroup-SnsTopic",
-      "Condition": {
-        "StringEquals": {
-          "aws:PrincipalOrgID": "o-ORGID"
-        }
-      }
+      ]
     }
-  ]
-}
 
 # Items to add:
-If encounter an exception send sns notification
-Ensure S3 bucket is encrypted
-Detect drift in CF template and send sns notification
-Turn Lambda function creation into a CloudFormation template so everything is automated
-Deploy shared Service Catalog portfolios to child accounts
-Test removing the second assume function for the infosec account. probably only need one
-If a CloudFormation template is deleted then the stack should be removed from accounts. Currently it does nothing. Would need to tag stack that was created with GuardEngine so there is a condition to key off of as well so we don't delete manual stacks.
+* If encounter an exception send sns notification
+* Automate setup with CloudFormation
+* Create folder in repo for example governance templates
+* Test removing the second assume function for the infosec account. probably only need one
+* If a CloudFormation template is deleted then the stack should be removed from accounts. Currently it does nothing. Would need to tag stack that was created with GuardEngine so there is a condition to key off of as well so we don't delete manual stacks.
 
 # Troubleshooting
-If existing child accounts have any of the following they will need to be deleted or removed. 
+## If existing child accounts have any of the following they will need to be deleted or removed. 
 
-AWS Config is already enabled - 
-  Create new admin user and get access key then run command below
-    aws configure (enter access key)
-    aws configservice describe-configuration-recorders
-    aws configservice delete-configuration-recorder --configuration-recorder-name RECORDER-NAME-FROM-ABOVE-COMMAND
-  Delete AWSconfig service role
-  Delete AWS Config Delivery channel with the commands below
-    aws configservice describe-delivery-channels
-    aws configservice delete-delivery-channel --delivery-channel-name CHANNEL-NAME-FROM-ABOVE-COMMAND
+* AWS Config is already enabled - 
+  * Create new admin user and get access key then run command below
+        aws configure (enter access key)
+        aws configservice describe-configuration-recorders
+        aws configservice delete-configuration-recorder --configuration-recorder-name RECORDER-NAME-FROM-ABOVE-COMMAND
+  * Delete AWSconfig service role
+  * Delete AWS Config Delivery channel with the commands below
+        aws configservice describe-delivery-channels
+        aws configservice delete-delivery-channel --delivery-channel-name CHANNEL-NAME-FROM-ABOVE-COMMAND

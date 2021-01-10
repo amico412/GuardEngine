@@ -22,6 +22,8 @@ A shared role that allows the master account access to all the child accounts to
     * TEST_TRIGGER
     * SHARED_ROLE
     * S3_TEMPLATE_BUCKET
+    * Enable default EBS encryption
+    * Excluded accounts (Ex: "12345","54321")
 * Create triggers to execute Lambda function automatically
     * Cloudwatch event with cron job every Sunday
     * Cloudwatch event for new or update CloudFormation templates in S3 Bucket
@@ -29,31 +31,31 @@ A shared role that allows the master account access to all the child accounts to
     * Manual Trigger from Lambda console
 
 # Lambda policy
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Effect": "Allow",
-            "Action": [
-                "logs:CreateLogStream",
-                "logs:PutLogEvents",
-                "logs:CreateLogGroup"
-            ],
-            "Resource": "arn:aws:logs:*:*:*"
-        },
-        {
-            "Effect": "Allow",
-            "Action": [
-                "sts:AssumeRole",
-                "organizations:DescribeCreateAccountStatus",
-                "organizations:DescribeAccount",
-                "organizations:ListAccounts",
-                "s3:*"
-            ],
-            "Resource": "*"
-        }
-    ]
-}
+    {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                    "logs:CreateLogGroup"
+                ],
+                "Resource": "arn:aws:logs:*:*:*"
+            },
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "sts:AssumeRole",
+                    "organizations:DescribeCreateAccountStatus",
+                    "organizations:DescribeAccount",
+                    "organizations:ListAccounts",
+                    "s3:*"
+                ],
+                "Resource": "*"
+            }
+        ]
+    }
 
 # S3 Bucket policy
 {

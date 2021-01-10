@@ -136,14 +136,14 @@ A shared role that allows the master account access to all the child accounts to
 * If a CloudFormation template is deleted then the stack should be removed from accounts. Currently it does nothing. Would need to tag stack that was created with GuardEngine so there is a condition to key off of as well so we don't delete manual stacks.
 
 # Troubleshooting
-## If existing child accounts have any of the following they will need to be deleted or removed. 
+### If existing child accounts have any of the following they will need to be deleted or removed. 
 
 * AWS Config is already enabled - 
   * Create new admin user and get access key then run command below
-        aws configure (enter access key)
-        aws configservice describe-configuration-recorders
-        aws configservice delete-configuration-recorder --configuration-recorder-name RECORDER-NAME-FROM-ABOVE-COMMAND
+    aws configure (enter access key)
+    aws configservice describe-configuration-recorders
+    aws configservice delete-configuration-recorder --configuration-recorder-name RECORDER-NAME-FROM-ABOVE-COMMAND
   * Delete AWSconfig service role
   * Delete AWS Config Delivery channel with the commands below
-        aws configservice describe-delivery-channels
-        aws configservice delete-delivery-channel --delivery-channel-name CHANNEL-NAME-FROM-ABOVE-COMMAND
+    aws configservice describe-delivery-channels
+    aws configservice delete-delivery-channel --delivery-channel-name CHANNEL-NAME-FROM-ABOVE-COMMAND

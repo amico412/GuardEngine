@@ -10,23 +10,23 @@ S3 bucket created in the Master account with the bucket policy below to allow al
 A shared role that allows the master account access to all the child accounts to enable GuardDuty, SecurityHub, set password policies, and deploy CloudFormation templates. If ControlTower is deployed this would be the "AWSControlTowerExecution" role that is automatically created. 
 
 # Setup
-Create an S3 bucket for standard cloudformation templates
-Create an S3 folder called "exclusions" in the bucket above for templates that won't be deployed to every account.
-Create an SNS topic in the Audit account with the name "DeleteOpenSecurityGroup-SnsTopic" and the Access policy below, replacing the values for the ACCOUNTNUMBER and ORGID.
-Create a Lambda IAM role with the policy below in order to read Accounts IDs from AWS Organizations.
-Create a Lambda function with the GuardEngine python file and the variables below
-    DEFAULT_REGION
-    SECURITY_ACCOUNT
-    MASTER_ACCOUNT
-    INFOSEC_DETECTORID
-    TEST_TRIGGER
-    SHARED_ROLE
-    S3_TEMPLATE_BUCKET
-Create triggers to execute Lambda function automatically
-    Cloudwatch event with cron job every Sunday
-    Cloudwatch event for new or update CloudFormation templates in S3 Bucket
-    Cloudwatch event for new accounts added
-    Manual Trigger from Lambda console
+* Create an S3 bucket for standard cloudformation templates
+* Create an S3 folder called "exclusions" in the bucket above for templates that won't be deployed to every account.
+* Create an SNS topic in the Audit account with the name "DeleteOpenSecurityGroup-SnsTopic" and the Access policy below, replacing the values for the ACCOUNTNUMBER and ORGID.
+* Create a Lambda IAM role with the policy below in order to read Accounts IDs from AWS Organizations.
+* Create a Lambda function with the GuardEngine python file and the variables below
+    * DEFAULT_REGION
+    * SECURITY_ACCOUNT
+    * MASTER_ACCOUNT
+    * INFOSEC_DETECTORID
+    * TEST_TRIGGER
+    * SHARED_ROLE
+    * S3_TEMPLATE_BUCKET
+* Create triggers to execute Lambda function automatically
+    * Cloudwatch event with cron job every Sunday
+    * Cloudwatch event for new or update CloudFormation templates in S3 Bucket
+    * Cloudwatch event for new accounts added
+    * Manual Trigger from Lambda console
 
 # Lambda policy
 {

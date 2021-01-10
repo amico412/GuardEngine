@@ -140,10 +140,14 @@ A shared role that allows the master account access to all the child accounts to
 
 * AWS Config is already enabled - 
   * Create new admin user and get access key then run command below
-    aws configure (enter access key)
-    aws configservice describe-configuration-recorders
-    aws configservice delete-configuration-recorder --configuration-recorder-name RECORDER-NAME-FROM-ABOVE-COMMAND
+```
+aws configure (enter access key)
+aws configservice describe-configuration-recorders
+aws configservice delete-configuration-recorder --configuration-recorder-name RECORDER-NAME-FROM-ABOVE-COMMAND
+```
   * Delete AWSconfig service role
   * Delete AWS Config Delivery channel with the commands below
-    aws configservice describe-delivery-channels
-    aws configservice delete-delivery-channel --delivery-channel-name CHANNEL-NAME-FROM-ABOVE-COMMAND
+```
+aws configservice describe-delivery-channels
+aws configservice delete-delivery-channel --delivery-channel-name CHANNEL-NAME-FROM-ABOVE-COMMAND
+```

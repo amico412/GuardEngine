@@ -129,6 +129,32 @@ A shared role that allows the master account access to all the child accounts to
 ```
    * Cloudwatch event for new or updated CloudFormation templates in S3 Bucket
 ```
+{
+  "source": [
+    "aws.s3"
+  ],
+  "detail-type": [
+    "AWS API Call via CloudTrail"
+  ],
+  "detail": {
+    "eventSource": [
+      "s3.amazonaws.com"
+    ],
+    "eventName": [
+      "PutObject",
+      "CompleteMultipartUpload",
+      "CopyObject"
+    ],
+    "requestParameters": {
+      "bucketName": [
+        "guardengine-demo"
+      ],
+      "key": [
+        "CloudFormation/TESTSecurityBaseline.yml"
+      ]
+    }
+  }
+}
 ```
    * Cloudwatch event for new accounts added
 ```

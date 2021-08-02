@@ -320,7 +320,7 @@ def enable_ebs_encryption(credentials):
 
     except:
         print("EBS Encrytpion already enabled")
-        result = status["EbsEncryptionByDefault"]
+        #result = status["EbsEncryptionByDefault"]
 
 def lambda_handler(event, context):
     print("boto3 version:"+boto3.__version__)
